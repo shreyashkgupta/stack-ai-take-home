@@ -4,7 +4,7 @@ A modern file picker interface for Google Drive integration with knowledge base 
 
 ## 🚀 Live Demo
 
-**Try it now:** [https://stack-ai-take-home-os7gsmerr-shreyashkguptas-projects.vercel.app](https://stack-ai-take-home-os7gsmerr-shreyashkguptas-projects.vercel.app)
+**Try it now:** [https://stack-ai-take-home-80voaep0t-shreyashkguptas-projects.vercel.app](https://stack-ai-take-home-80voaep0t-shreyashkguptas-projects.vercel.app)
 
 ## 📋 Project Overview
 
