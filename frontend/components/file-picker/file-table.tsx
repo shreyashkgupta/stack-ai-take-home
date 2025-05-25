@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -9,7 +9,6 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { Resource } from "@/types/api";
@@ -62,6 +61,101 @@ function getDisplayName(fullPath: string): string {
   return parts[parts.length - 1] || fullPath;
 }
 
+function sortHierarchicalData(
+  originalData: HierarchicalResource[],
+  sortingState: SortingState
+): HierarchicalResource[] {
+  if (!sortingState || sortingState.length === 0) {
+    return originalData;
+  }
+
+  const { id: sortBy, desc: sortDesc } = sortingState[0];
+
+  const getValue = (resource: HierarchicalResource, columnId: string) => {
+    if (columnId === "inode_path.path") {
+      return getDisplayName(resource.inode_path.path).toLowerCase();
+    }
+    if (columnId === "modified_at") {
+      return new Date(resource.modified_at).getTime();
+    }
+    if (columnId === "size") {
+      if (resource.inode_type === "directory") return -1;
+      return resource.size as number;
+    }
+    if (columnId === "status") {
+      return resource.status || '';
+    }
+    return resource[columnId as keyof HierarchicalResource];
+  };
+
+  const resourcesById: Record<string, HierarchicalResource> = {};
+  const childrenByParentId: Record<string, string[]> = {};
+  const rootItemIds: string[] = [];
+
+  originalData.forEach(item => {
+    resourcesById[item.resource_id] = item;
+    const parentId = item.parentId;
+    if (parentId && originalData.some(p => p.resource_id === parentId)) {
+      if (!childrenByParentId[parentId]) {
+        childrenByParentId[parentId] = [];
+      }
+      childrenByParentId[parentId].push(item.resource_id);
+    } else {
+      rootItemIds.push(item.resource_id);
+    }
+  });
+
+  const recursiveSortAndFlatten = (currentItemIds: string[]): HierarchicalResource[] => {
+    const itemsToSort = currentItemIds.map(id => resourcesById[id]).filter(item => !!item);
+
+
+    itemsToSort.sort((a, b) => {
+      const valA = getValue(a, sortBy);
+      const valB = getValue(b, sortBy);
+      let comparison = 0;
+
+      const aIsNull = valA === null || valA === undefined;
+      const bIsNull = valB === null || valB === undefined;
+
+      if (aIsNull && bIsNull) {
+        comparison = 0;
+      } else if (aIsNull) {
+        comparison = 1; 
+      } else if (bIsNull) {
+        comparison = -1;
+      } else {
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          comparison = valA - valB;
+        } else if (typeof valA === 'string' && typeof valB === 'string') {
+          comparison = valA.localeCompare(valB);
+        } else {
+          if (valA < valB) comparison = -1;
+          else if (valA > valB) comparison = 1;
+        }
+      }
+      
+      if (comparison === 0 && sortBy !== "inode_path.path") {
+        const nameA = getDisplayName(a.inode_path.path).toLowerCase();
+        const nameB = getDisplayName(b.inode_path.path).toLowerCase();
+        comparison = nameA.localeCompare(nameB);
+      }
+      
+      return sortDesc ? comparison * -1 : comparison;
+    });
+
+    const result: HierarchicalResource[] = [];
+    itemsToSort.forEach(item => {
+      result.push(item);
+      if (item.inode_type === "directory" && childrenByParentId[item.resource_id]) {
+        result.push(...recursiveSortAndFlatten(childrenByParentId[item.resource_id]));
+      }
+    });
+    return result;
+  };
+
+  return recursiveSortAndFlatten(rootItemIds);
+}
+
 export function FileTable({
   data,
   isLoading,
@@ -91,37 +185,42 @@ export function FileTable({
   };
 
   const handleSelectAll = (checked: boolean) => {
+    const currentRows = table.getFilteredRowModel().rows.map(row => row.original);
     if (checked) {
-      // Select all visible rows
-      data.forEach(resource => {
+      currentRows.forEach(resource => {
         if (!selectedResources[resource.resource_id]) {
           onSelect(resource);
         }
       });
     } else {
-      data.forEach(resource => {
+      currentRows.forEach(resource => {
         if (selectedResources[resource.resource_id]) {
           onSelect(resource);
         }
       });
     }
   };
+  
+  const processedData = useMemo(() => {
+    return sortHierarchicalData(data, sorting);
+  }, [data, sorting]);
 
   const columns: ColumnDef<HierarchicalResource>[] = [
     {
       id: "select",
-      header: () => (
-        <div className="flex items-center justify-center">
-          <Checkbox
-            checked={
-              data.length > 0 &&
-              data.every(resource => selectedResources[resource.resource_id])
-            }
-            onCheckedChange={handleSelectAll}
-            aria-label="Select all"
-          />
-        </div>
-      ),
+      header: () => {
+        const currentRows = table.getFilteredRowModel().rows.map(row => row.original);
+        const allVisibleSelected = currentRows.length > 0 && currentRows.every(resource => selectedResources[resource.resource_id]);
+        return (
+          <div className="flex items-center justify-center">
+            <Checkbox
+              checked={allVisibleSelected}
+              onCheckedChange={handleSelectAll}
+              aria-label="Select all"
+            />
+          </div>
+        );
+      },
       cell: ({ row }) => {
         const resource = row.original;
         return (
@@ -362,21 +461,22 @@ export function FileTable({
   ];
 
   const table = useReactTable({
-    data,
+    data: processedData,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    manualSorting: true,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       globalFilter,
     },
+    getRowId: (row) => row.resource_id,
   });
 
   return (
