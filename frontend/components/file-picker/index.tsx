@@ -27,7 +27,6 @@ import {
 } from '@/lib/api';
 import Image from "next/image";
 
-// Extended resource type with hierarchy info
 export interface HierarchicalResource extends Resource {
   depth: number;
   isExpanded?: boolean;
@@ -49,16 +48,12 @@ export function FilePicker({
   onCreateKnowledgeBase,
   className,
 }: FilePickerProps) {
-  // State for expanded folders
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   
-  // State for loaded folder contents
   const [folderContents, setFolderContents] = useState<Record<string, Resource[]>>({});
   
-  // State for loading folders
   const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
   
-  // Selection hooks
   const { 
     selectedResources, 
     toggleSelection,  
@@ -68,7 +63,6 @@ export function FilePicker({
     selectionCount,
   } = useResourceSelection();
   
-  // Fetch root resources with SWR
   const { 
     data: rootData, 
     error, 
@@ -76,35 +70,28 @@ export function FilePicker({
     mutate: refreshResources 
   } = useConnectionResources(connectionId, '');
   
-  // Prefetching on hover
   const { prefetchResource } = usePrefetchResources(connectionId);
   
-  // Add indexing status tracking
   const { 
     indexingStatus, 
     updateIndexingStatus,
     updateBulkIndexingStatus
   } = useIndexingStatus();
   
-  // Add state for storing our own knowledge base ID
   const [localKnowledgeBaseId, setLocalKnowledgeBaseId] = useState<string | null>(null);
   
-  // Initialization effect - create KB if needed
   useEffect(() => {
-    // If knowledgeBaseId was provided, use that
     if (knowledgeBaseId) {
       setLocalKnowledgeBaseId(knowledgeBaseId);
       return;
     }
     
-    // Check if we have a stored KB ID in localStorage
     const storedKbId = localStorage.getItem('stackAI_knowledgeBaseId');
     if (storedKbId) {
       setLocalKnowledgeBaseId(storedKbId);
       return;
     }
     
-    // Otherwise, create a new knowledge base
     const initializeKnowledgeBase = async () => {
       if (!connectionId || !orgId) {
         return;
@@ -113,19 +100,17 @@ export function FilePicker({
       try {
         const kb = await createAndSyncKnowledgeBase(
           connectionId,
-          [], // Start with no resources
-          'Stack AI Take Home Knowledge Base',
-          'Knowledge base for the Stack AI take home project',
+          [],
+          'Stack AI Take Home KB',
+          'KB for the Stack AI take home project',
           orgId
         );
         
         const newKbId = kb.knowledge_base_id;
         
-        // Store in localStorage for persistence
         localStorage.setItem('stackAI_knowledgeBaseId', newKbId);
         setLocalKnowledgeBaseId(newKbId);
         
-        // Notify parent if needed
         if (onCreateKnowledgeBase) {
           onCreateKnowledgeBase(kb as unknown as Record<string, unknown>);
         }
@@ -140,38 +125,31 @@ export function FilePicker({
     initializeKnowledgeBase();
   }, [connectionId, knowledgeBaseId, orgId, onCreateKnowledgeBase]);
   
-  // Now we use the effective KB ID throughout the component
   const effectiveKnowledgeBaseId = localKnowledgeBaseId || knowledgeBaseId;
   
-  // Fixed status loading that checks connection_source_ids
   const loadIndexingStatus = async () => {
     if (!effectiveKnowledgeBaseId) {
       return;
     }
 
     try {
-      // Get the KB status to check connection_source_ids
       const kb = await getKnowledgeBaseStatus(effectiveKnowledgeBaseId);
       const sourceIds = kb.connection_source_ids || [];
       
-      // Also get visible resources for their current status
       const kbResources = await getKnowledgeBaseResources(effectiveKnowledgeBaseId);
       
       const newStatus: Record<string, string> = {};
       
-      // Mark resources that are in connection_source_ids as indexed
       sourceIds.forEach(sourceId => {
         newStatus[sourceId] = 'indexed';
       });
       
-      // Override with actual status from visible resources if available
       kbResources.data.forEach(resource => {
         if (resource.status) {
           newStatus[resource.resource_id] = resource.status;
         }
       });
       
-      // Update the indexing status for each resource
       Object.entries(newStatus).forEach(([resourceId, status]) => {
         updateIndexingStatus(resourceId, status);
       });
@@ -181,20 +159,16 @@ export function FilePicker({
     }
   };
   
-  // Add an effect to load the indexing status from the knowledge base
   useEffect(() => {
     if (!effectiveKnowledgeBaseId) return;
     
-    // Load immediately on mount
     loadIndexingStatus();
     
-    // And then set up a refresh interval
     const intervalId = setInterval(loadIndexingStatus, 30000); // Every 30 seconds
     
     return () => clearInterval(intervalId);
   }, [effectiveKnowledgeBaseId, updateIndexingStatus]);
   
-  // Improved polling logic that respects manual status updates
   const pollIndexingStatus = useCallback(async (
     knowledgeBaseId: string, 
     resourceIds: string[], 
@@ -212,13 +186,12 @@ export function FilePicker({
         
         let allCompleted = true;
         let hasErrors = false;
-        completedResources = []; // Reset completed list
+        completedResources = [];
         
         for (const resourceId of resourceIds) {
           const currentLocalStatus = indexingStatus[resourceId];
           const apiStatus = statusMap[resourceId];
           
-          // Don't override manual status changes (like de-indexing)
           if (currentLocalStatus === 'de-indexing' || currentLocalStatus === 'resource') {
             continue;
           }
@@ -238,7 +211,6 @@ export function FilePicker({
               hasErrors = true;
             }
           } else {
-            // Resource not found in KB - might have been de-indexed
             allCompleted = false;
           }
         }
@@ -250,7 +222,6 @@ export function FilePicker({
             } else if (attempts >= maxAttempts) {
               toast.error('Indexing timed out', { id: toastId });
             } else {
-              // Use the actual completed resources count from API
               const successCount = completedResources.length;
               if (successCount > 0) {
                 toast.success(`${successCount} file(s) indexed successfully`, { id: toastId });
@@ -260,15 +231,13 @@ export function FilePicker({
             }
           }
           
-          // Final refresh to ensure UI is in sync
           refreshResources();
           return;
         }
         
-        // Continue polling
         setTimeout(poll, 10000); // 10 second intervals
       } catch (error) {
-        console.error('❌ Error during polling:', error);
+        console.error('Error during polling:', error);
         if (attempts >= maxAttempts) {
           if (toastId) {
             toast.error('Failed to check indexing status', { id: toastId });
@@ -276,19 +245,16 @@ export function FilePicker({
           return;
         }
         
-        // Retry on error
         setTimeout(poll, 10000);
       }
     };
     
-    // Start polling
     poll();
   }, [indexingStatus, updateIndexingStatus, refreshResources]);
   
-  // Load folder contents
   const loadFolderContents = useCallback(async (folderId: string) => {
     if (folderContents[folderId] || loadingFolders.has(folderId)) {
-      return; // Already loaded or loading
+      return;
     }
     
     setLoadingFolders(prev => new Set(prev).add(folderId));
@@ -311,29 +277,24 @@ export function FilePicker({
     }
   }, [connectionId, folderContents, loadingFolders]);
   
-  // Handle folder toggle
   const handleFolderToggle = useCallback(async (resource: Resource) => {
     const folderId = resource.resource_id;
     
     if (expandedFolders.has(folderId)) {
-      // Collapse folder
       setExpandedFolders(prev => {
         const newSet = new Set(prev);
         newSet.delete(folderId);
         return newSet;
       });
     } else {
-      // Expand folder
       setExpandedFolders(prev => new Set(prev).add(folderId));
       
-      // Load contents if not already loaded
       if (!folderContents[folderId]) {
         await loadFolderContents(folderId);
       }
     }
   }, [expandedFolders, folderContents, loadFolderContents]);
   
-  // Build hierarchical data structure
   const hierarchicalData = useMemo(() => {
     if (!rootData?.data) return [];
     
@@ -348,7 +309,6 @@ export function FilePicker({
         
         acc.push(hierarchicalResource);
         
-        // If this is an expanded folder, add its children
         if (resource.inode_type === 'directory' && 
             expandedFolders.has(resource.resource_id) && 
             folderContents[resource.resource_id]) {
@@ -367,14 +327,12 @@ export function FilePicker({
     return buildHierarchy(rootData.data);
   }, [rootData?.data, expandedFolders, folderContents]);
   
-  // Handle navigation (now just toggles folders)
   const handleNavigate = useCallback((resource: Resource) => {
     if (resource.inode_type === 'directory') {
       handleFolderToggle(resource);
     }
   }, [handleFolderToggle]);
   
-  // Handle indexing with proper status tracking
   const handleIndex = useCallback(async (resource: Resource) => {
     if (!connectionId || !effectiveKnowledgeBaseId || !orgId) {
       toast.error('Knowledge base not ready yet');
@@ -382,14 +340,11 @@ export function FilePicker({
     }
 
     try {
-      // Set initial status to pending
       updateIndexingStatus(resource.resource_id, 'pending');
       
-      // Show loading toast
       const loadingToast = toast.loading(`Indexing "${resource.inode_path.path}"...`);
       
       try {
-        // Add the single resource to the knowledge base and trigger sync
         await addResourcesToKnowledgeBase(
           effectiveKnowledgeBaseId,
           connectionId,
@@ -397,10 +352,8 @@ export function FilePicker({
           orgId
         );
         
-        // Update to processing toast
         toast.loading(`Processing "${resource.inode_path.path}"...`, { id: loadingToast });
         
-        // Start polling for this specific resource
         pollIndexingStatus(effectiveKnowledgeBaseId, [resource.resource_id], loadingToast);
         
       } catch (error) {
@@ -415,13 +368,11 @@ export function FilePicker({
     }
   }, [connectionId, effectiveKnowledgeBaseId, orgId, updateIndexingStatus, pollIndexingStatus]);
   
-  // Helper function to get all files recursively from a folder
   const getAllFilesInFolder = useCallback(async (folderId: string): Promise<string[]> => {
     const fileIds: string[] = [];
     
     const collectFiles = async (currentFolderId: string): Promise<void> => {
       try {
-        // Load folder contents if not already loaded
         if (!folderContents[currentFolderId]) {
           await loadFolderContents(currentFolderId);
         }
@@ -430,10 +381,8 @@ export function FilePicker({
         
         for (const resource of contents) {
           if (resource.inode_type === 'directory') {
-            // Recursively collect files from subdirectories
             await collectFiles(resource.resource_id);
           } else {
-            // Add file to collection
             fileIds.push(resource.resource_id);
           }
         }
@@ -446,17 +395,13 @@ export function FilePicker({
     return fileIds;
   }, [folderContents, loadFolderContents]);
 
-  // Enhanced handle selection with folder support - FIXED
   const handleSelect = useCallback(async (resource: Resource) => {
     if (resource.inode_type === 'directory') {
-      // For folders, select/deselect all files inside (but NOT the folder itself)
       const isCurrentlySelected = selectedResources[resource.resource_id];
       
       if (isCurrentlySelected) {
-        // Deselect folder and all its files
-        toggleSelection(resource.resource_id); // Remove folder from selection
+        toggleSelection(resource.resource_id);
         
-        // Get all files in this folder and deselect them
         try {
           const fileIds = await getAllFilesInFolder(resource.resource_id);
           fileIds.forEach(fileId => {
@@ -468,10 +413,7 @@ export function FilePicker({
           console.error('Failed to deselect files in folder:', error);
         }
       } else {
-        // DON'T select the folder itself - only select files inside
-        // toggleSelection(resource.resource_id); // ❌ Remove this line
-        
-        // Get all files in this folder and select them
+        toggleSelection(resource.resource_id);
         try {
           const fileIds = await getAllFilesInFolder(resource.resource_id);
           fileIds.forEach(fileId => {
@@ -489,12 +431,10 @@ export function FilePicker({
         }
       }
     } else {
-      // For files, just toggle selection normally
       toggleSelection(resource.resource_id);
     }
   }, [selectedResources, toggleSelection, getAllFilesInFolder]);
 
-  // Enhanced bulk indexing that only indexes files (not folders)
   const handleBulkIndex = useCallback(async () => {
     if (!connectionId || !effectiveKnowledgeBaseId || !orgId) {
       toast.error('Knowledge base not ready yet');
@@ -507,7 +447,6 @@ export function FilePicker({
       return;
     }
     
-    // Filter out folders - only index actual files
     const fileIds = selectedIds.filter(id => {
       const resource = hierarchicalData.find(r => r.resource_id === id);
       return resource && resource.inode_type !== 'directory';
@@ -518,21 +457,17 @@ export function FilePicker({
       return;
     }
     
-    // Show info if some folders were excluded
     const folderCount = selectedIds.length - fileIds.length;
     if (folderCount > 0) {
       toast.info(`Indexing ${fileIds.length} files (${folderCount} folders excluded)`);
     }
     
     try {
-      // Set initial status to pending for all selected files only
       updateBulkIndexingStatus(fileIds, 'pending');
       
-      // Show loading toast
       const loadingToast = toast.loading(`Indexing ${fileIds.length} files...`);
       
       try {
-        // Add all file resources to the knowledge base in one call
         await addResourcesToKnowledgeBase(
           effectiveKnowledgeBaseId,
           connectionId,
@@ -540,13 +475,9 @@ export function FilePicker({
           orgId
         );
         
-        // Update to processing toast
         toast.loading(`Processing ${fileIds.length} files...`, { id: loadingToast });
-        
-        // Clear selection after successful submission
+      
         clearSelection();
-        
-        // Start polling for all selected file resources
         pollIndexingStatus(effectiveKnowledgeBaseId, fileIds, loadingToast);
         
       } catch (error) {
@@ -561,7 +492,6 @@ export function FilePicker({
     }
   }, [connectionId, effectiveKnowledgeBaseId, orgId, getSelectedIds, clearSelection, updateBulkIndexingStatus, pollIndexingStatus, hierarchicalData]);
   
-  // Handle de-indexing with proper KB state management
   const handleDeIndex = useCallback(async (resource: Resource) => {
     if (!effectiveKnowledgeBaseId || !orgId) {
       toast.error('Knowledge base not initialized yet');
@@ -569,24 +499,17 @@ export function FilePicker({
     }
     
     try {
-      // Set initial status to de-indexing
       updateIndexingStatus(resource.resource_id, 'de-indexing');
-      
-      // Show loading toast
       const loadingToast = toast.loading(`De-indexing "${resource.inode_path.path}"...`);
       
       try {
-        // Properly remove the resource from KB (removes from connection_source_ids AND deletes resource)
         await removeResourceFromKnowledgeBase(
           effectiveKnowledgeBaseId,
           resource.resource_id,
           orgId
         );
         
-        // Update status to reflect de-indexed state
         updateIndexingStatus(resource.resource_id, 'resource');
-        
-        // Refresh resources to reflect changes
         refreshResources();
         
         toast.success(`"${resource.inode_path.path}" de-indexed successfully`, { id: loadingToast });
@@ -602,14 +525,12 @@ export function FilePicker({
     }
   }, [effectiveKnowledgeBaseId, orgId, updateIndexingStatus, refreshResources]);
   
-  // Handle bulk de-indexing
   const handleBulkDeIndex = useCallback(async () => {
     if (!effectiveKnowledgeBaseId || !orgId) {
       toast.error('Knowledge base not ready yet');
       return;
     }
     
-    // Get only indexed files from selection
     const selectedIds = getSelectedIds();
     const indexedSelectedIds = selectedIds.filter(id => 
       indexingStatus[id] === 'indexed' || indexingStatus[id] === 'completed'
@@ -621,27 +542,18 @@ export function FilePicker({
     }
     
     try {
-      // Set initial status to de-indexing for all selected indexed resources
       updateBulkIndexingStatus(indexedSelectedIds, 'de-indexing');
-      
-      // Show loading toast
       const loadingToast = toast.loading(`De-indexing ${indexedSelectedIds.length} files...`);
       
       try {
-        // Remove all resources from the knowledge base using the bulk function
         await removeResourcesFromKnowledgeBase(
           effectiveKnowledgeBaseId,
           indexedSelectedIds,
           orgId
         );
         
-        // Update status to reflect de-indexed state for all
         updateBulkIndexingStatus(indexedSelectedIds, 'resource');
-        
-        // Clear selection after successful de-indexing
         clearSelection();
-        
-        // Refresh resources to reflect changes
         refreshResources();
         
         toast.success(`${indexedSelectedIds.length} files de-indexed successfully`, { id: loadingToast });
@@ -657,12 +569,10 @@ export function FilePicker({
     }
   }, [effectiveKnowledgeBaseId, orgId, getSelectedIds, clearSelection, updateBulkIndexingStatus, refreshResources]);
   
-  // Render file list content based on loading/error state
   const renderContent = useCallback(() => {
     if (isLoadingRoot) {
       return (
         <div className="flex flex-col h-full">
-          {/* Search and Columns skeleton - Fixed at top */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -672,68 +582,50 @@ export function FilePicker({
             <Skeleton className="h-9 w-20" />
           </div>
 
-          {/* Table skeleton wrapper */}
           <div className="rounded-md border flex-1 flex flex-col">
-            {/* Fixed table header skeleton */}
             <div className="border-b">
               <div className="flex">
-                {/* Select column */}
                 <div className="w-[60px] p-4 border-r">
                   <Skeleton className="h-4 w-4 mx-auto" />
                 </div>
-                {/* Name column */}
                 <div className="flex-1 p-4 border-r">
                   <Skeleton className="h-4 w-16" />
                 </div>
-                {/* Modified column */}
                 <div className="w-[150px] p-4 border-r">
                   <Skeleton className="h-4 w-16" />
                 </div>
-                {/* Size column */}
                 <div className="w-[100px] p-4 border-r">
                   <Skeleton className="h-4 w-8" />
                 </div>
-                {/* Status column */}
                 <div className="w-[120px] p-4 border-r">
                   <Skeleton className="h-4 w-12" />
                 </div>
-                {/* Actions column */}
                 <div className="w-[70px] p-4">
                   <Skeleton className="h-4 w-4 mx-auto" />
                 </div>
               </div>
             </div>
             
-            {/* Scrollable table body skeleton */}
-            <div className="overflow-auto h-[350px] p-2">
+            <div className="overflow-hidden h-[350px] p-2">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex items-center py-3 border-b last:border-b-0">
-                  {/* Select column */}
                   <div className="w-[60px] flex justify-center">
                     <Skeleton className="h-4 w-4" />
                   </div>
-                  {/* Name column with hierarchical indentation */}
                   <div className="flex-1 flex items-center gap-2" style={{ paddingLeft: `${(i % 3) * 20}px` }}>
-                    {/* Expand/collapse icon for some rows */}
                     {i % 4 === 0 && <Skeleton className="h-3 w-3" />}
-                    {/* File icon */}
                     <Skeleton className="h-4 w-4" />
-                    {/* File name */}
                     <Skeleton className={`h-4 ${i % 3 === 0 ? 'w-32' : i % 3 === 1 ? 'w-24' : 'w-40'}`} />
                   </div>
-                  {/* Modified column */}
                   <div className="w-[150px] px-4">
                     <Skeleton className="h-4 w-20" />
                   </div>
-                  {/* Size column */}
                   <div className="w-[100px] px-4">
                     <Skeleton className="h-4 w-12" />
                   </div>
-                  {/* Status column */}
                   <div className="w-[120px] px-4">
                     <Skeleton className="h-6 w-16 rounded-full" />
                   </div>
-                  {/* Actions column */}
                   <div className="w-[70px] flex justify-center">
                     <Skeleton className="h-8 w-8" />
                   </div>
