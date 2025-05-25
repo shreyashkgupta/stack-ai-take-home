@@ -265,6 +265,15 @@ export function FilePicker({
         ...prev,
         [folderId]: response.data
       }));
+
+      if (response.data && response.data.length > 0) {
+        response.data.forEach(childResource => {
+          if (childResource.inode_type === 'directory') {
+            prefetchResource(childResource.resource_id);
+          }
+        });
+      }
+
     } catch (error) {
       console.error('Failed to load folder contents', error);
       toast.error('Failed to load folder contents');
@@ -275,7 +284,7 @@ export function FilePicker({
         return newSet;
       });
     }
-  }, [connectionId, folderContents, loadingFolders]);
+  }, [connectionId, folderContents, loadingFolders, prefetchResource]);
   
   const handleFolderToggle = useCallback(async (resource: Resource) => {
     const folderId = resource.resource_id;
