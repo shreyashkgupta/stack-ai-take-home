@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronDown, MoreHorizontal, Search, Loader2, CheckCircle2, AlertCircle, Clock, FileText, ChevronRight } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { DataTableColumnHeader } from "@/components/file-picker/table-header";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface HierarchicalResource extends Resource {
   depth: number;
@@ -247,7 +248,7 @@ export function FileTable({
         const resource = row.original;
         const isDirectory = resource.inode_type === "directory";
         const isExpanded = resource.isExpanded;
-        const isLoading = loadingFolders.has(resource.resource_id);
+        const isLoadingFolderContent = loadingFolders.has(resource.resource_id);
         const indentationLevel = resource.depth * 20; // 20px per level
         const displayName = getDisplayName(resource.inode_path.path);
 
@@ -264,9 +265,7 @@ export function FileTable({
           >
             {isDirectory && (
               <div className="flex items-center justify-center w-4 h-4">
-                {isLoading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : isExpanded ? (
+                {isLoadingFolderContent || isExpanded ? (
                   <ChevronDown className="h-3 w-3" />
                 ) : (
                   <ChevronRight className="h-3 w-3" />
@@ -558,30 +557,80 @@ export function FileTable({
           <Table>
             <TableBody>
               {table.getRowModel().rows.length > 0 ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={selectedResources[row.original.resource_id] ? "selected" : undefined}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        style={{
-                          width: cell.column.id === 'select' ? '60px' :
-                            cell.column.id === 'status' ? '120px' :
-                              cell.column.id === 'modified_at' ? '150px' :
-                                cell.column.id === 'size' ? '100px' :
-                                  cell.column.id === 'actions' ? '70px' : 'auto'
-                        }}
+                table.getRowModel().rows.map((row) => {
+                  const resource = row.original;
+                  return (
+                    <Fragment key={row.id}>
+                      <TableRow
+                        data-state={selectedResources[resource.resource_id] ? "selected" : undefined}
                       >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell
+                            key={cell.id}
+                            style={{
+                              width: cell.column.id === 'select' ? '60px' :
+                                cell.column.id === 'status' ? '120px' :
+                                  cell.column.id === 'modified_at' ? '150px' :
+                                    cell.column.id === 'size' ? '100px' :
+                                      cell.column.id === 'actions' ? '70px' : 'auto'
+                            }}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      {resource.inode_type === "directory" && loadingFolders.has(resource.resource_id) &&
+                        Array.from({ length: 3 }).map((_, i) => (
+                          <TableRow key={`${row.id}-skeleton-${i}`}>
+                            {row.getVisibleCells().map(originalCell => {
+                              const skeletonDepth = resource.depth + 1;
+                              const indentationPx = skeletonDepth * 20;
+                              
+                              return (
+                                <TableCell
+                                  key={`${originalCell.id}-skeleton-${i}`}
+                                  style={{
+                                    width: originalCell.column.id === 'select' ? '60px' :
+                                           originalCell.column.id === 'status' ? '120px' :
+                                           originalCell.column.id === 'modified_at' ? '150px' :
+                                           originalCell.column.id === 'size' ? '100px' :
+                                           originalCell.column.id === 'actions' ? '70px' : 'auto',
+                                  }}
+                                >
+                                  {originalCell.column.id === 'select' && (
+                                    <div className="flex items-center justify-center">
+                                      <Skeleton className="h-4 w-4" />
+                                    </div>
+                                  )}
+                                  {originalCell.column.id === 'inode_path_path' && (
+                                    <div 
+                                      className="flex items-center gap-2" 
+                                      style={{ paddingLeft: `${indentationPx}px` }}
+                                    >
+                                      <Skeleton className="h-4 w-4" />
+                                      <Skeleton className="h-5 w-5" />
+                                      <Skeleton className="h-4 w-[250px]" />
+                                    </div>
+                                  )}
+                                  {originalCell.column.id === 'modified_at' && <Skeleton className="h-4 w-[100px]" />}
+                                  {originalCell.column.id === 'size' && <Skeleton className="h-4 w-[60px]" />}
+                                  {originalCell.column.id === 'status' && <Skeleton className="h-4 w-[80px] rounded-md" />}
+                                  {originalCell.column.id === 'actions' && (
+                                    <div className="flex items-center justify-center">
+                                      <Skeleton className="h-4 w-4" />
+                                    </div>
+                                  )}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                    </Fragment>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell
