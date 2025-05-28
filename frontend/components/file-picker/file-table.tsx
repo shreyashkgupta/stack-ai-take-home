@@ -336,7 +336,6 @@ export function FileTable({
 
           switch (status) {
             case 'indexed':
-            case 'completed':
               return {
                 label: 'Indexed',
                 variant: 'success' as const,
@@ -346,7 +345,6 @@ export function FileTable({
                 className: 'bg-green-100 text-green-800 hover:bg-green-100 border-green-200'
               };
             case 'pending':
-            case 'processing':
               return {
                 label: 'Indexing...',
                 variant: 'warning' as const,
@@ -367,7 +365,6 @@ export function FileTable({
                 className: 'bg-orange-100 text-orange-800 hover:bg-orange-100 border-orange-200'
               };
             case 'error':
-            case 'failed':
               return {
                 label: 'Error',
                 variant: 'destructive' as const,

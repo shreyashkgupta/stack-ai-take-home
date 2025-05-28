@@ -2,19 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getAuthToken, isAuthenticated, logout } from '@/lib/auth';
+import { AuthContextType } from '@/types/auth';
 import { getCurrentOrgId } from '@/lib/api';
 import { toast } from "sonner";
 
-interface AuthContextType {
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  orgId: string | null;
-  login: (email?: string, password?: string) => Promise<void>;
-  logout: () => void;
-  error: string | null;
-}
-
-// Create the context with default values
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isLoading: true,
