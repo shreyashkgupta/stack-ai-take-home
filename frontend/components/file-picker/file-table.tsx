@@ -503,7 +503,7 @@ export function FileTable({
                       column.toggleVisibility(!!value)
                     }
                   >
-                    {column.id === "inode_path.path" ? "Name" :
+                    {column.id === "inode_path_path" ? "Name" :
                       column.id === "modified_at" ? "Modified" :
                         column.id === "size" ? "Size" :
                           column.id === "status" ? "Status" : column.id}
