@@ -26,6 +26,7 @@ import {
   getKnowledgeBaseStatus
 } from '@/lib/api';
 import Image from "next/image";
+import { useSWRConfig } from 'swr';
 
 export interface HierarchicalResource extends Resource {
   depth: number;
@@ -79,6 +80,8 @@ export function FilePicker({
   } = useIndexingStatus();
   
   const [localKnowledgeBaseId, setLocalKnowledgeBaseId] = useState<string | null>(null);
+  
+  const { mutate } = useSWRConfig();
   
   useEffect(() => {
     if (knowledgeBaseId) {
@@ -257,34 +260,105 @@ export function FilePicker({
       return;
     }
     
-    setLoadingFolders(prev => new Set(prev).add(folderId));
+    const cacheKey = [`connections/${connectionId}/resources`, folderId];
+    const cachedData = mutate(cacheKey);
     
-    try {
-      const response = await getConnectionResources(connectionId, folderId);
-      setFolderContents(prev => ({
-        ...prev,
-        [folderId]: response.data
-      }));
+    if (cachedData && typeof cachedData.then === 'function') {
+      setLoadingFolders(prev => new Set(prev).add(folderId));
+      
+      try {
+        const response = await cachedData;
+        
+        if (response && response.data) {
+          setFolderContents(prev => ({
+            ...prev,
+            [folderId]: response.data
+          }));
 
-      if (response.data && response.data.length > 0) {
-        response.data.forEach(childResource => {
-          if (childResource.inode_type === 'directory') {
-            prefetchResource(childResource.resource_id);
+          if (response.data.length > 0) {
+            response.data.forEach((childResource: Resource) => {
+              if (childResource.inode_type === 'directory') {
+                prefetchResource(childResource.resource_id);
+              }
+            });
           }
+        } else {
+          const directResponse = await getConnectionResources(connectionId, folderId);
+          setFolderContents(prev => ({
+            ...prev,
+            [folderId]: directResponse.data
+          }));
+
+          if (directResponse.data && directResponse.data.length > 0) {
+            directResponse.data.forEach(childResource => {
+              if (childResource.inode_type === 'directory') {
+                prefetchResource(childResource.resource_id);
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load folder contents from cache, trying direct API call', error);
+        
+        try {
+          const response = await getConnectionResources(connectionId, folderId);
+          setFolderContents(prev => ({
+            ...prev,
+            [folderId]: response.data
+          }));
+
+          if (response.data && response.data.length > 0) {
+            response.data.forEach(childResource => {
+              if (childResource.inode_type === 'directory') {
+                prefetchResource(childResource.resource_id);
+              }
+            });
+          }
+        } catch (directError) {
+          console.error('Failed to load folder contents', directError);
+          toast.error('Failed to load folder contents');
+        }
+      } finally {
+        setLoadingFolders(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(folderId);
+          return newSet;
         });
       }
+    } else if (cachedData && typeof cachedData === 'object' && 'data' in cachedData) {
+      setFolderContents(prev => ({
+        ...prev,
+        [folderId]: (cachedData as { data: Resource[] }).data
+      }));
+    } else {
+      setLoadingFolders(prev => new Set(prev).add(folderId));
+      
+      try {
+        const response = await getConnectionResources(connectionId, folderId);
+        setFolderContents(prev => ({
+          ...prev,
+          [folderId]: response.data
+        }));
 
-    } catch (error) {
-      console.error('Failed to load folder contents', error);
-      toast.error('Failed to load folder contents');
-    } finally {
-      setLoadingFolders(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(folderId);
-        return newSet;
-      });
+        if (response.data && response.data.length > 0) {
+          response.data.forEach(childResource => {
+            if (childResource.inode_type === 'directory') {
+              prefetchResource(childResource.resource_id);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load folder contents', error);
+        toast.error('Failed to load folder contents');
+      } finally {
+        setLoadingFolders(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(folderId);
+          return newSet;
+        });
+      }
     }
-  }, [connectionId, folderContents, loadingFolders, prefetchResource]);
+  }, [connectionId, folderContents, loadingFolders, prefetchResource, mutate]);
   
   const handleFolderToggle = useCallback(async (resource: Resource) => {
     const folderId = resource.resource_id;

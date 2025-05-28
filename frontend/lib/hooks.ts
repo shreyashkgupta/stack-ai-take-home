@@ -195,3 +195,19 @@ export function useIndexingStatus() {
     updateBulkIndexingStatus,
   };
 }
+
+export function useFolderContents(connectionId: string | null, folderId: string | null, enabled: boolean = true) {
+  const shouldFetch = Boolean(connectionId && folderId && enabled);
+  
+  return useSWR(
+    shouldFetch ? [`connections/${connectionId}/resources`, folderId] : null,
+    async () => {
+      if (!connectionId || !folderId) return null;
+      return getConnectionResources(connectionId, folderId);
+    },
+    { 
+      ...defaultConfig,
+      revalidateOnMount: false
+    }
+  );
+}
