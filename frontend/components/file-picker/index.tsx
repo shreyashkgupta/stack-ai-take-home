@@ -662,55 +662,57 @@ export function FilePicker({
                 <Skeleton className="h-9 w-[250px] md:w-[300px]" />
               </div>
             </div>
-            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-28" />
           </div>
 
           <div className="rounded-md border flex-1 flex flex-col">
             <div className="border-b">
-              <div className="flex">
-                <div className="w-[60px] p-4 border-r">
-                  <Skeleton className="h-4 w-4 mx-auto" />
+              <div className="flex h-12 items-center px-4">
+                <div className="w-[60px] flex justify-center items-center pr-4 border-r">
+                  <Skeleton className="h-4 w-4" />
                 </div>
-                <div className="flex-1 p-4 border-r">
-                  <Skeleton className="h-4 w-16" />
+                <div className="flex-1 px-4 border-r">
+                  <Skeleton className="h-4 w-20" />
                 </div>
-                <div className="w-[150px] p-4 border-r">
-                  <Skeleton className="h-4 w-16" />
+                <div className="w-[150px] px-4 border-r">
+                  <Skeleton className="h-4 w-20" />
                 </div>
-                <div className="w-[100px] p-4 border-r">
-                  <Skeleton className="h-4 w-8" />
-                </div>
-                <div className="w-[120px] p-4 border-r">
+                <div className="w-[100px] px-4 border-r">
                   <Skeleton className="h-4 w-12" />
                 </div>
-                <div className="w-[70px] p-4">
-                  <Skeleton className="h-4 w-4 mx-auto" />
+                <div className="w-[120px] px-4 border-r">
+                  <Skeleton className="h-4 w-16" />
+                </div>
+                <div className="w-[70px] flex justify-center items-center pl-4">
+                  <Skeleton className="h-4 w-4" />
                 </div>
               </div>
             </div>
             
             <div className="overflow-hidden h-[350px] p-2">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex items-center py-3 border-b last:border-b-0">
-                  <div className="w-[60px] flex justify-center">
+                <div key={i} className="flex items-center py-3 border-b last:border-b-0 h-14">
+                  <div className="w-[60px] flex justify-center items-center pr-4">
                     <Skeleton className="h-4 w-4" />
                   </div>
-                  <div className="flex-1 flex items-center gap-2" style={{ paddingLeft: `${(i % 3) * 20}px` }}>
-                    {i % 4 === 0 && <Skeleton className="h-3 w-3" />}
-                    <Skeleton className="h-4 w-4" />
-                    <Skeleton className={`h-4 ${i % 3 === 0 ? 'w-32' : i % 3 === 1 ? 'w-24' : 'w-40'}`} />
+                  <div 
+                    className="flex-1 flex items-center gap-2 px-4" 
+                    style={{ paddingLeft: `${(i % 3) * 20 + 16}px` }}
+                  >
+                    <Skeleton className="h-5 w-5 flex-shrink-0" />
+                    <Skeleton className="h-4 w-full max-w-[200px]" />
                   </div>
-                  <div className="w-[150px] px-4">
-                    <Skeleton className="h-4 w-20" />
+                  <div className="w-[150px] px-4 flex items-center">
+                    <Skeleton className="h-4 w-24" />
                   </div>
-                  <div className="w-[100px] px-4">
+                  <div className="w-[100px] px-4 flex items-center">
                     <Skeleton className="h-4 w-12" />
                   </div>
-                  <div className="w-[120px] px-4">
-                    <Skeleton className="h-6 w-16 rounded-full" />
+                  <div className="w-[120px] px-4 flex items-center">
+                    <Skeleton className="h-6 w-20 rounded-md" />
                   </div>
-                  <div className="w-[70px] flex justify-center">
-                    <Skeleton className="h-8 w-8" />
+                  <div className="w-[70px] flex justify-center items-center pl-4">
+                    <Skeleton className="h-6 w-6" />
                   </div>
                 </div>
               ))}

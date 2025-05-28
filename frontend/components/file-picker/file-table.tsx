@@ -584,7 +584,7 @@ export function FileTable({
                       </TableRow>
                       {resource.inode_type === "directory" && loadingFolders.has(resource.resource_id) &&
                         Array.from({ length: 3 }).map((_, i) => (
-                          <TableRow key={`${row.id}-skeleton-${i}`}>
+                          <TableRow key={`${row.id}-skeleton-${i}`} className="h-14">
                             {row.getVisibleCells().map(originalCell => {
                               const skeletonDepth = resource.depth + 1;
                               const indentationPx = skeletonDepth * 20;
@@ -599,28 +599,40 @@ export function FileTable({
                                            originalCell.column.id === 'size' ? '100px' :
                                            originalCell.column.id === 'actions' ? '70px' : 'auto',
                                   }}
+                                  className="py-0"
                                 >
                                   {originalCell.column.id === 'select' && (
-                                    <div className="flex items-center justify-center">
+                                    <div className="flex items-center justify-center h-full">
                                       <Skeleton className="h-4 w-4" />
                                     </div>
                                   )}
                                   {originalCell.column.id === 'inode_path_path' && (
                                     <div 
-                                      className="flex items-center gap-2" 
+                                      className="flex items-center gap-2 h-full" 
                                       style={{ paddingLeft: `${indentationPx}px` }}
                                     >
-                                      <Skeleton className="h-4 w-4" />
-                                      <Skeleton className="h-5 w-5" />
-                                      <Skeleton className="h-4 w-[250px]" />
+                                      <Skeleton className="h-5 w-5 flex-shrink-0" />
+                                      <Skeleton className="h-4 w-full max-w-[200px]" />
                                     </div>
                                   )}
-                                  {originalCell.column.id === 'modified_at' && <Skeleton className="h-4 w-[100px]" />}
-                                  {originalCell.column.id === 'size' && <Skeleton className="h-4 w-[60px]" />}
-                                  {originalCell.column.id === 'status' && <Skeleton className="h-4 w-[80px] rounded-md" />}
+                                  {originalCell.column.id === 'modified_at' && (
+                                    <div className="flex items-center h-full">
+                                      <Skeleton className="h-4 w-24" />
+                                    </div>
+                                  )}
+                                  {originalCell.column.id === 'size' && (
+                                    <div className="flex items-center h-full">
+                                      <Skeleton className="h-4 w-12" />
+                                    </div>
+                                  )}
+                                  {originalCell.column.id === 'status' && (
+                                    <div className="flex items-center h-full">
+                                      <Skeleton className="h-6 w-20 rounded-md" />
+                                    </div>
+                                  )}
                                   {originalCell.column.id === 'actions' && (
-                                    <div className="flex items-center justify-center">
-                                      <Skeleton className="h-4 w-4" />
+                                    <div className="flex items-center justify-center h-full">
+                                      <Skeleton className="h-6 w-6" />
                                     </div>
                                   )}
                                 </TableCell>
