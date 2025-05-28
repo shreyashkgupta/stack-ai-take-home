@@ -89,3 +89,9 @@ export interface KnowledgeBase {
 export interface OrganizationResponse {
   org_id: string;
 }
+
+export interface HierarchicalResource extends Resource {
+  depth: number;
+  isExpanded?: boolean;
+  parentId?: string;
+}

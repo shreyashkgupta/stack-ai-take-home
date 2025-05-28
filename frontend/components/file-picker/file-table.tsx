@@ -11,7 +11,7 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Resource } from "@/types/api";
+import { Resource, HierarchicalResource } from "@/types/api";
 import { FileTypeIcon } from "./file-icon";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -37,12 +37,6 @@ import { ChevronDown, MoreHorizontal, Search, Loader2, CheckCircle2, AlertCircle
 import { formatDistanceToNow } from "date-fns";
 import { DataTableColumnHeader } from "@/components/file-picker/table-header";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface HierarchicalResource extends Resource {
-  depth: number;
-  isExpanded?: boolean;
-  parentId?: string;
-}
 
 interface FileTableProps {
   data: HierarchicalResource[];

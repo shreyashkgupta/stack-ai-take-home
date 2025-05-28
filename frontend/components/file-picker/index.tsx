@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useConnectionResources, useResourceSelection, usePrefetchResources, useIndexingStatus } from '@/lib/hooks';
-import { Resource } from '@/types/api';
+import { Resource, HierarchicalResource } from '@/types/api';
 import { FileTable } from './file-table';
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,12 +27,6 @@ import {
 } from '@/lib/api';
 import Image from "next/image";
 import { useSWRConfig } from 'swr';
-
-export interface HierarchicalResource extends Resource {
-  depth: number;
-  isExpanded?: boolean;
-  parentId?: string;
-}
 
 export interface FilePickerProps {
   connectionId: string;
