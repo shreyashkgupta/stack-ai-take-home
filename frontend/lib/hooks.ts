@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import useSWR, { SWRConfiguration, useSWRConfig } from 'swr';
 import { useDebounce } from 'use-debounce';
 import { 
@@ -152,19 +152,27 @@ export function useKnowledgeBaseOperations(knowledgeBaseId: string | null, orgId
 }
 
 export function usePrefetchResources(connectionId: string | null) {
-  const { mutate } = useSWRConfig();
+  const { mutate, cache } = useSWRConfig();
+  const prefetchedKeys = useRef<Set<string>>(new Set());
   
   const prefetchResource = useCallback((resourceId: string) => {
     if (!connectionId) return;
     
     const key = [`connections/${connectionId}/resources`, resourceId];
+    const keyString = JSON.stringify(key);
+    
+    if (prefetchedKeys.current.has(keyString) || cache.get(keyString)?.data) {
+      return;
+    }
+    
+    prefetchedKeys.current.add(keyString);
     
     mutate(
       key, 
       getConnectionResources(connectionId, resourceId),
       { revalidate: false, populateCache: true }
     );
-  }, [connectionId, mutate]);
+  }, [connectionId, mutate, cache]);
   
   return { prefetchResource };
 }

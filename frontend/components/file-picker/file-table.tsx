@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo, Fragment, useCallback, useRef, useEffect } from "react";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -168,6 +168,37 @@ export function FileTable({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = useState<string>("");
 
+  // Add debouncing and caching for prefetch to prevent excessive API calls
+  const prefetchTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const prefetchedResources = useRef<Set<string>>(new Set());
+  
+  const debouncedPrefetch = useCallback((resourceId: string) => {
+    if (prefetchedResources.current.has(resourceId)) {
+      return;
+    }
+    
+    const existingTimeout = prefetchTimeouts.current.get(resourceId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    
+    const timeout = setTimeout(() => {
+      if (onPrefetch && !prefetchedResources.current.has(resourceId)) {
+        onPrefetch(resourceId);
+        prefetchedResources.current.add(resourceId);
+      }
+      prefetchTimeouts.current.delete(resourceId);
+    }, 500);
+    
+    prefetchTimeouts.current.set(resourceId, timeout);
+  }, [onPrefetch]);
+  
+  useEffect(() => {
+    return () => {
+      prefetchTimeouts.current.forEach(timeout => clearTimeout(timeout));
+    };
+  }, []);
+
   const resourcesMap = data.reduce((acc, resource) => {
     acc[resource.resource_id] = resource;
     return acc;
@@ -253,7 +284,7 @@ export function FileTable({
             onClick={() => onNavigate(resource)}
             onMouseEnter={() => {
               if (isDirectory && onPrefetch) {
-                onPrefetch(resource.resource_id);
+                debouncedPrefetch(resource.resource_id);
               }
             }}
           >

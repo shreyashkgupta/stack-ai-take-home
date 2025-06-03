@@ -270,10 +270,9 @@ export function FilePicker({
           }));
 
           if (response.data.length > 0) {
-            response.data.forEach((childResource: Resource) => {
-              if (childResource.inode_type === 'directory') {
-                prefetchResource(childResource.resource_id);
-              }
+            const directories = response.data.filter((r: Resource) => r.inode_type === 'directory');
+            directories.slice(0, 3).forEach((childResource: Resource) => {
+              prefetchResource(childResource.resource_id);
             });
           }
         } else {
@@ -284,10 +283,9 @@ export function FilePicker({
           }));
 
           if (directResponse.data && directResponse.data.length > 0) {
-            directResponse.data.forEach(childResource => {
-              if (childResource.inode_type === 'directory') {
-                prefetchResource(childResource.resource_id);
-              }
+            const directories = directResponse.data.filter(r => r.inode_type === 'directory');
+            directories.slice(0, 3).forEach(childResource => {
+              prefetchResource(childResource.resource_id);
             });
           }
         }
@@ -302,10 +300,9 @@ export function FilePicker({
           }));
 
           if (response.data && response.data.length > 0) {
-            response.data.forEach(childResource => {
-              if (childResource.inode_type === 'directory') {
-                prefetchResource(childResource.resource_id);
-              }
+            const directories = response.data.filter(r => r.inode_type === 'directory');
+            directories.slice(0, 3).forEach(childResource => {
+              prefetchResource(childResource.resource_id);
             });
           }
         } catch (directError) {
@@ -335,10 +332,9 @@ export function FilePicker({
         }));
 
         if (response.data && response.data.length > 0) {
-          response.data.forEach(childResource => {
-            if (childResource.inode_type === 'directory') {
-              prefetchResource(childResource.resource_id);
-            }
+          const directories = response.data.filter(r => r.inode_type === 'directory');
+          directories.slice(0, 3).forEach(childResource => {
+            prefetchResource(childResource.resource_id);
           });
         }
       } catch (error) {
